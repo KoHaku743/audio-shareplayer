@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>audio-shareplayer</title>
+  <link rel="stylesheet" href="/css/style.css" />
+  <style>
+    .features {
+      display: flex;
+      gap: .75rem;
+      flex-wrap: wrap;
+      justify-content: center;
+      margin-bottom: 2rem;
+    }
+    .feature-chip {
+      display: flex;
+      align-items: center;
+      gap: .35rem;
+      padding: .35rem .75rem;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      font-size: .78rem;
+      color: var(--muted);
+    }
+    .feature-chip span { font-size: .95rem; }
+  </style>
+</head>
+<body>
+<div id="index-page">
+  <div class="logo">🎬 audio-shareplayer</div>
+  <p class="tagline">Stream video on PC · hear it on mobile · perfectly in sync</p>
+
+  <div class="features">
+    <div class="feature-chip"><span>🖥️</span> Video on PC</div>
+    <div class="feature-chip"><span>📱</span> Audio on mobile</div>
+    <div class="feature-chip"><span>🔄</span> Real-time sync</div>
+    <div class="feature-chip"><span>⚡</span> Torrent streaming</div>
+    <div class="feature-chip"><span>🔑</span> Real-Debrid</div>
+  </div>
+
+  <div class="card index-card">
+    <!-- Create / Join tabs -->
+    <div class="tabs" role="tablist">
+      <button class="tab-btn active" id="tab-create" role="tab" aria-selected="true" onclick="switchMainTab('create')">➕ Create Room</button>
+      <button class="tab-btn"        id="tab-join"   role="tab" aria-selected="false" onclick="switchMainTab('join')">🚪 Join Room</button>
+    </div>
+
+    <!-- ── CREATE ───────────────────────────────────────────────────── -->
+    <div id="panel-create">
+      <!-- Source type tabs -->
+      <div class="source-tabs">
+        <button class="source-tab active" id="src-url"      onclick="switchSourceTab('url')">🔗 URL</button>
+        <button class="source-tab"        id="src-torrent"  onclick="switchSourceTab('torrent')">🧲 Torrent</button>
+        <button class="source-tab"        id="src-rd"       onclick="switchSourceTab('rd')">🔑 Real-Debrid</button>
+      </div>
+
+      <!-- URL source -->
+      <div id="source-url-panel" class="form-group">
+        <label class="label" for="url-input">Stream / video URL <span class="text-muted">(HLS .m3u8, MP4, WEBM…)</span></label>
+        <input id="url-input" type="url" placeholder="https://example.com/stream.m3u8" />
+      </div>
+
+      <!-- Torrent source -->
+      <div id="source-torrent-panel" class="form-group hidden">
+        <label class="label" for="magnet-input">Magnet link</label>
+        <input id="magnet-input" type="text" placeholder="magnet:?xt=urn:btih:…" />
+        <p class="text-muted" style="margin-top:.4rem">
+          The server will start downloading the torrent and stream it to all room members.
+        </p>
+      </div>
+
+      <!-- Real-Debrid source -->
+      <div id="source-rd-panel" class="form-group hidden">
+        <label class="label">Real-Debrid API key</label>
+        <div class="rd-key-row form-group">
+          <input id="rd-key-input" type="password" placeholder="Your Real-Debrid API key" />
+          <button class="btn btn-secondary" onclick="checkRdKey()">Check</button>
+        </div>
+        <div id="rd-key-status" class="text-muted text-sm" style="margin-bottom:.6rem"></div>
+        <label class="label" for="rd-link-input">Premium / restricted link</label>
+        <input id="rd-link-input" type="url" placeholder="https://rapidgator.net/file/…" />
+        <p class="text-muted" style="margin-top:.4rem">
+          The link will be unrestricted via Real-Debrid before playback starts.
+        </p>
+      </div>
+
+      <!-- Mode selection -->
+      <label class="label">Your playback mode</label>
+      <div class="mode-select" id="create-mode-select">
+        <div class="mode-option selected" onclick="selectMode('video', 'create')" data-mode="video">
+          <span class="mode-icon">🖥️</span>
+          <div class="mode-name">Video</div>
+          <div class="mode-desc">Full video + audio</div>
+        </div>
+        <div class="mode-option" onclick="selectMode('audio', 'create')" data-mode="audio">
+          <span class="mode-icon">🎧</span>
+          <div class="mode-name">Audio only</div>
+          <div class="mode-desc">Audio, no video display</div>
+        </div>
+      </div>
+
+      <div id="create-error" class="text-muted text-sm" style="color:var(--danger);margin-bottom:.5rem;"></div>
+
+      <button class="btn btn-primary btn-lg w-full" id="create-btn" onclick="createRoom()">
+        Create Room &amp; Start
+      </button>
+    </div>
+
+    <!-- ── JOIN ─────────────────────────────────────────────────────── -->
+    <div id="panel-join" class="hidden">
+      <div class="form-group">
+        <label class="label" for="join-code-input">Room code</label>
+        <div class="input-row">
+          <input id="join-code-input" type="text" placeholder="e.g. A1B2C3D4" maxlength="8"
+                 style="text-transform:uppercase;letter-spacing:.1em" />
+        </div>
+      </div>
+
+      <label class="label">Your playback mode</label>
+      <div class="mode-select" id="join-mode-select">
+        <div class="mode-option" onclick="selectMode('video', 'join')" data-mode="video">
+          <span class="mode-icon">🖥️</span>
+          <div class="mode-name">Video</div>
+          <div class="mode-desc">Full video + audio</div>
+        </div>
+        <div class="mode-option selected" onclick="selectMode('audio', 'join')" data-mode="audio">
+          <span class="mode-icon">🎧</span>
+          <div class="mode-name">Audio only</div>
+          <div class="mode-desc">Audio, no video display</div>
+        </div>
+      </div>
+
+      <div id="join-error" class="text-muted text-sm" style="color:var(--danger);margin-bottom:.5rem;"></div>
+
+      <button class="btn btn-primary btn-lg w-full" id="join-btn" onclick="joinRoom()">
+        Join Room
+      </button>
+    </div>
+  </div>
+
+  <p class="text-muted" style="margin-top:1.5rem;text-align:center;font-size:.8rem;">
+    Share the room code with your device to sync playback · no account needed
+  </p>
+</div>
+
+<div id="toast-container"></div>
+
+<script src="/js/main.js" type="module"></script>
+</body>
+</html>

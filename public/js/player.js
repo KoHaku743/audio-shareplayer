@@ -71,7 +71,15 @@ function loadSource(el, url) {
 
   const isHLS = url.includes('.m3u8') || url.includes('/hls/') || url.includes('playlist');
 
+  // Route cross-origin direct video URLs through the server proxy to avoid
+  // browser CORS restrictions (e.g. Real-Debrid download links).
+  // HLS is excluded because HLS.js manages its own segment fetching.
+  const isCrossOrigin = /^https?:\/\//i.test(url) && !url.startsWith(window.location.origin);
+  const srcUrl = (!isHLS && isCrossOrigin) ? `/api/proxy?url=${encodeURIComponent(url)}` : url;
+
   if (isHLS && window.Hls && Hls.isSupported()) {
+    // HLS.js fetches all manifest/segment URLs through its own XHR, so the
+    // proxy is not needed here – pass the original URL directly.
     hlsInstance = new Hls({ enableWorker: true, lowLatencyMode: true });
     hlsInstance.loadSource(url);
     hlsInstance.attachMedia(el);
@@ -85,11 +93,11 @@ function loadSource(el, url) {
       }
     });
   } else if (isHLS && el.canPlayType('application/vnd.apple.mpegurl')) {
-    // Safari native HLS
+    // Safari native HLS – the browser handles CORS internally for HLS.
     el.src = url;
     hideOverlay();
   } else {
-    el.src = url;
+    el.src = srcUrl;
     hideOverlay();
   }
 }

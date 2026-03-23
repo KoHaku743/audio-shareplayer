@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Room · audio-shareplayer</title>
+  <link rel="stylesheet" href="/css/style.css" />
+</head>
+<body>
+<!-- ── QR / share modal ────────────────────────────────────────────── -->
+<div class="modal-backdrop hidden" id="share-modal" onclick="closeShareModal(event)">
+  <div class="modal" onclick="event.stopPropagation()">
+    <h2>📱 Scan to join on mobile</h2>
+    <p>Point your phone camera at the QR code, or copy the link below.</p>
+    <canvas id="qr-canvas" width="200" height="200"></canvas>
+    <div class="join-url" id="share-url"></div>
+    <div style="display:flex;gap:.5rem;justify-content:center;flex-wrap:wrap;">
+      <button class="btn btn-primary" onclick="copyShareUrl()">📋 Copy link</button>
+      <button class="btn btn-secondary" onclick="closeShareModal()">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Toast container ────────────────────────────────────────────── -->
+<div id="toast-container"></div>
+
+<!-- ── ROOM PAGE ──────────────────────────────────────────────────── -->
+<div id="room-page" class="hidden">
+
+  <!-- Header -->
+  <header class="room-header">
+    <div class="room-header-left">
+      <a href="/" style="color:var(--accent2);font-weight:800;text-decoration:none;font-size:1.1rem;">🎬</a>
+      <div class="room-id-badge" id="room-id-badge" title="Click to copy" onclick="copyRoomId()">
+        <span id="room-id-text">------</span>
+        <span style="font-size:.7rem;color:var(--muted)">📋</span>
+      </div>
+      <span class="badge" id="mode-badge">VIDEO</span>
+      <span class="badge badge-master hidden" id="master-badge">👑 Master</span>
+      <span class="source-name" id="source-name-el"></span>
+    </div>
+    <div class="room-header-right">
+      <span id="sync-badge" class="badge badge-synced hidden">✓ Synced</span>
+      <span id="member-count-badge" class="badge" style="background:var(--surface2)">👤 1</span>
+      <button class="btn btn-secondary text-sm" onclick="openShareModal()">📱 Share</button>
+    </div>
+  </header>
+
+  <!-- Main content -->
+  <div class="room-main">
+
+    <!-- Video player (PC/video mode) -->
+    <div class="video-wrap" id="video-wrap">
+      <video id="main-video" controls playsinline crossorigin="anonymous"></video>
+      <!-- Loading overlay -->
+      <div class="overlay-msg hidden" id="video-overlay">
+        <div class="spinner"></div>
+        <span id="overlay-text">Loading stream…</span>
+      </div>
+    </div>
+
+    <!-- Audio-only view (mobile) -->
+    <div class="audio-only-wrap hidden" id="audio-wrap">
+      <!-- Hidden video element used to decode any video stream as audio -->
+      <video id="audio-video" playsinline crossorigin="anonymous"
+             style="width:0;height:0;position:absolute;opacity:0;pointer-events:none"></video>
+
+      <div class="audio-visualizer paused" id="audio-viz">
+        <div class="audio-bar"></div>
+        <div class="audio-bar"></div>
+        <div class="audio-bar"></div>
+        <div class="audio-bar"></div>
+        <div class="audio-bar"></div>
+        <div class="audio-bar"></div>
+        <div class="audio-bar"></div>
+      </div>
+
+      <div class="audio-track-info">
+        <div class="audio-track-title" id="audio-track-title">Loading…</div>
+        <div class="text-muted text-sm" id="audio-track-sub"></div>
+      </div>
+
+      <button class="big-play-btn" id="big-play-btn" onclick="togglePlay()">▶</button>
+    </div>
+
+    <!-- Sidebar (chat + members) – hidden on small screens -->
+    <aside class="room-sidebar" id="room-sidebar">
+      <div class="sidebar-tabs">
+        <button class="sidebar-tab active" id="sidebar-tab-members" onclick="switchSidebarTab('members')">Members</button>
+        <button class="sidebar-tab"        id="sidebar-tab-chat"    onclick="switchSidebarTab('chat')">Chat</button>
+      </div>
+
+      <!-- Members panel -->
+      <div id="sidebar-panel-members" class="sidebar-content">
+        <div id="members-list"></div>
+      </div>
+
+      <!-- Chat panel -->
+      <div id="sidebar-panel-chat" class="sidebar-content hidden" style="display:flex;flex-direction:column;">
+        <div id="chat-messages" class="chat-messages" style="flex:1;overflow-y:auto;"></div>
+        <div class="chat-input-row" style="margin-top:.5rem;">
+          <input id="chat-input" type="text" placeholder="Message…" maxlength="500"
+                 onkeydown="if(event.key==='Enter') sendChat()" />
+          <button class="btn btn-primary" onclick="sendChat()">➤</button>
+        </div>
+      </div>
+    </aside>
+  </div>
+
+  <!-- Controls bar -->
+  <div class="controls-bar" id="controls-bar">
+    <input type="range" class="seek-bar w-full" id="seek-bar" min="0" max="100" step="0.1" value="0"
+           oninput="onSeekInput(this.value)" onchange="onSeekCommit(this.value)" />
+    <div class="controls-top">
+      <div class="controls-play-group">
+        <button class="btn btn-secondary btn-icon" id="prev-btn" title="Back 10s" onclick="skip(-10)">⏮</button>
+        <button class="btn btn-primary btn-icon" style="width:44px;height:44px;border-radius:50%;font-size:1.2rem;"
+                id="play-pause-btn" title="Play / Pause" onclick="togglePlay()">▶</button>
+        <button class="btn btn-secondary btn-icon" id="next-btn" title="Forward 10s" onclick="skip(10)">⏭</button>
+      </div>
+      <div class="controls-time">
+        <span id="current-time-el">0:00</span> / <span id="duration-el">--:--</span>
+      </div>
+      <div class="controls-volume">
+        <button class="btn btn-secondary btn-icon" id="mute-btn" onclick="toggleMute()" title="Mute">🔊</button>
+        <input type="range" class="volume-slider" id="vol-slider" min="0" max="1" step="0.02" value="1"
+               oninput="setVolume(this.value)" />
+      </div>
+      <div class="controls-right">
+        <span id="slave-status" class="badge hidden"></span>
+        <button class="btn btn-secondary text-sm" id="fullscreen-btn" onclick="toggleFullscreen()" title="Fullscreen">⛶</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Scripts -->
+<script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.9/dist/hls.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+<script src="/socket.io/socket.io.js"></script>
+<script src="/js/player.js" type="module"></script>
+</body>
+</html>

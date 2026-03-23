@@ -2,6 +2,7 @@
   "name": "audio-shareplayer",
   "version": "1.0.0",
   "description": "Synchronized video/audio stream player – video on PC, audio on mobile. Supports HLS/MP4 URLs, torrent streaming, and Real-Debrid.",
+  "author": "audio-shareplayer",
   "type": "module",
   "main": "electron-main.cjs",
   "scripts": {
@@ -17,6 +18,10 @@
     "uuid": "^9.0.0",
     "webtorrent": "^2.1.34"
   },
+  "optionalDependencies": {
+    "bufferutil": "^4.0.8",
+    "utf-8-validate": "^6.0.3"
+  },
   "engines": {
     "node": ">=18"
   },
@@ -28,6 +33,7 @@
   "build": {
     "appId": "com.audio-shareplayer.app",
     "productName": "audio-shareplayer",
+    "npmRebuild": false,
     "files": [
       "electron-main.cjs",
       "server.js",

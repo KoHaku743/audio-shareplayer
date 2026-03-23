@@ -234,6 +234,71 @@ app.post('/api/realdebrid/check', async (req, res) => {
 });
 
 // ---------------------------------------------------------------------------
+// Generic streaming proxy
+// ---------------------------------------------------------------------------
+// GET /api/proxy?url=<encoded-url>
+// Streams a remote http/https URL through the server, forwarding Range headers.
+// Used by the player to avoid browser CORS restrictions on direct video URLs
+// (e.g. Real-Debrid download links) without requiring the CDN to add CORS headers.
+
+// Returns true for IP addresses that belong to private/loopback ranges (SSRF guard).
+function isPrivateHost(hostname) {
+  if (hostname === 'localhost' || hostname === '::1') return true;
+  const ipv4 = hostname.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
+  if (ipv4) {
+    const [a, b] = ipv4.slice(1).map(Number);
+    if (a === 127) return true;                           // 127.x.x.x loopback
+    if (a === 10) return true;                            // 10.x.x.x private
+    if (a === 172 && b >= 16 && b <= 31) return true;    // 172.16-31.x.x private
+    if (a === 192 && b === 168) return true;              // 192.168.x.x private
+    if (a === 169 && b === 254) return true;              // 169.254.x.x link-local
+    if (a === 0) return true;                             // 0.x.x.x unspecified
+  }
+  return false;
+}
+
+app.get('/api/proxy', async (req, res) => {
+  const { url } = req.query;
+  if (!url) return res.status(400).json({ error: 'url query parameter required' });
+
+  let parsed;
+  try {
+    parsed = new URL(url);
+  } catch {
+    return res.status(400).json({ error: 'Invalid URL' });
+  }
+  if (!['http:', 'https:'].includes(parsed.protocol)) {
+    return res.status(400).json({ error: 'Only http/https URLs are supported' });
+  }
+  if (isPrivateHost(parsed.hostname)) {
+    return res.status(403).json({ error: 'Proxying private/loopback addresses is not allowed' });
+  }
+
+  const upstreamHeaders = {};
+  if (req.headers.range) upstreamHeaders['range'] = req.headers.range;
+
+  try {
+    const upstream = await axios.get(url, {
+      responseType: 'stream',
+      headers: upstreamHeaders,
+      validateStatus: () => true,
+      timeout: 30000,
+    });
+
+    const outHeaders = { 'access-control-allow-origin': '*' };
+    ['content-type', 'content-length', 'content-range', 'accept-ranges'].forEach(h => {
+      if (upstream.headers[h]) outHeaders[h] = upstream.headers[h];
+    });
+
+    res.writeHead(upstream.status, outHeaders);
+    upstream.data.pipe(res);
+  } catch (err) {
+    console.warn('Proxy fetch error:', err.message);
+    if (!res.headersSent) res.status(502).json({ error: 'Failed to fetch upstream resource' });
+  }
+});
+
+// ---------------------------------------------------------------------------
 // Socket.io – room sync
 // ---------------------------------------------------------------------------
 io.on('connection', (socket) => {

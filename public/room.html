@@ -51,7 +51,7 @@
 
     <!-- Video player (PC/video mode) -->
     <div class="video-wrap" id="video-wrap">
-      <video id="main-video" controls playsinline crossorigin="anonymous"></video>
+      <video id="main-video" controls playsinline></video>
       <!-- Loading overlay -->
       <div class="overlay-msg hidden" id="video-overlay">
         <div class="spinner"></div>
@@ -62,7 +62,7 @@
     <!-- Audio-only view (mobile) -->
     <div class="audio-only-wrap hidden" id="audio-wrap">
       <!-- Hidden video element used to decode any video stream as audio -->
-      <video id="audio-video" playsinline crossorigin="anonymous"
+      <video id="audio-video" playsinline
              style="width:0;height:0;position:absolute;opacity:0;pointer-events:none"></video>
 
       <div class="audio-visualizer paused" id="audio-viz">

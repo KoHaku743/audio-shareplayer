@@ -15,8 +15,9 @@ let videoEl = null;
 let hlsInstance = null;
 
 // Sync state
-let isSeeking     = false;
-let lastSyncTime  = 0;
+let isSeeking        = false;
+let lastSyncTime     = 0;
+let autoplayBlocked  = false; // true when browser blocked autoplay; cleared on first play
 const DRIFT_THRESHOLD = 2.5; // seconds
 
 // ── DOM refs ──────────────────────────────────────────────────────────────
@@ -178,6 +179,7 @@ window.toggleFullscreen = function () {
 // ── Video event listeners ─────────────────────────────────────────────────
 function attachVideoEvents(el) {
   el.addEventListener('play', () => {
+    autoplayBlocked = false;
     updatePlayPauseUI(true);
     if (isMaster) emitSyncState();
   });
@@ -224,11 +226,20 @@ function applySync(state) {
   }
 
   if (isPlaying && videoEl.paused) {
-    videoEl.play().catch(() => {});
-  } else if (!isPlaying && !videoEl.paused) {
+    videoEl.play().catch(err => {
+      if (err.name === 'NotAllowedError' && !autoplayBlocked) {
+        // Browser blocked autoplay (common on iOS Safari and desktop Chrome/Firefox
+        // when the page hasn't received a user gesture yet).
+        autoplayBlocked = true;
+        updatePlayPauseUI(false); // keep ▶ visible so user knows to tap
+        showToast('Tap ▶ to start audio', 'info', 8000);
+      }
+    });
+    return; // UI update handled by the 'play' event or catch handler above
+  }
+  if (!isPlaying && !videoEl.paused) {
     videoEl.pause();
   }
-
   updatePlayPauseUI(isPlaying);
 }
 

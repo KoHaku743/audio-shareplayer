@@ -16,7 +16,7 @@
     "express": "^4.18.2",
     "socket.io": "^4.7.4",
     "uuid": "^9.0.0",
-    "webtorrent": "^2.1.34"
+    "webtorrent": "^2.8.5"
   },
   "optionalDependencies": {
     "bufferutil": "^4.0.8",
@@ -27,8 +27,11 @@
   },
   "license": "MIT",
   "devDependencies": {
-    "electron": "^33.4.11",
+    "electron": "^35.7.5",
     "electron-builder": "^26.8.1"
+  },
+  "overrides": {
+    "ip-set": "^3.0.0"
   },
   "build": {
     "appId": "com.audio-shareplayer.app",

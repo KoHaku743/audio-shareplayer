@@ -15,11 +15,24 @@ A web app that lets you **stream video on your PC browser** while your **mobile 
 
 ## Quick start
 
+### As a web server (Node.js required)
+
 ```bash
 npm install
 npm start
 # Open http://localhost:3000
 ```
+
+### As a desktop app (Electron — no Node.js required by end-users)
+
+```bash
+npm install
+npm run electron          # Run in Electron window
+npm run electron:build    # Build a distributable .exe / .dmg / AppImage
+```
+
+The built installer will be in the `dist/` folder.  
+Windows produces an NSIS installer (`.exe`), macOS a `.dmg`, and Linux an AppImage.
 
 ## Usage
 
